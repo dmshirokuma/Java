@@ -30,7 +30,7 @@ Springがクラス内の全てのコンテンツをスキャンし、@Beanの付
 @Configuration
 public class ProjectConfig {
 
-    @Bean
+    @Bean`
     Vehicle vehicle() {
         var veh = new Vehicle();
         veh.setName("Vehicle Name");
