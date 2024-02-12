@@ -443,3 +443,389 @@ public class Example1 {
 ```Text
 Vehicle name from Spring Context is :Vehicle Name1
 ```
+
+### @Autowired
+
+あるBeanが別のBeanに依存している場合、Autowiredアノテーションを使用することによって  
+依存関係を解決し、依存性を注入することができる。
+
+#### Field Injection（非推奨）
+
+Beanのフィールドに対して@Autowiredを付与することによって、対象のフィールドにBeanを注入することができる。  
+以下のようなイメージ。
+
+```Java
+@Component
+public class Vehicle {
+
+    public Vehicle() {
+        this.name = "Vehicle name";
+    }
+
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+
+@Component
+public class Person {
+
+    private String name;
+
+    //@AutowiredアノテーションによってvehicleにVehicleクラスのBeanを注入する（依存関係を解決する）
+    @Autowired
+    private Vehicle vehicle;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Vehicle getVehicle() {
+        return vehicle;
+    }
+
+    public void setVehicle(Vehicle vehicle) {
+        this.vehicle = vehicle;
+    }
+}
+```
+
+```Java
+public class Example1 {
+    public static void main(String[] args) {
+
+        //ApplicationContext生成
+        var context = new AnnotationConfigApplicationContext(ProjectConfig.class);
+
+        var person = (Person)context.getBean(Person.class);
+        System.out.println("Person's vehicle name from Spring Context is :" + person.getVehicle().getName());
+    }
+}
+```
+
+実行結果
+（@Autowiredがなければvehicleがnullのままなので例外となる。）
+
+```Text
+Person's vehicle name from Spring Context is :Vehicle name
+```
+
+ちなみにAutowiredにて対応するBeanが存在しない場合は、デフォルトで例外が発生するが  
+以下のように設定することで、例外を発生させないようにすることもできる。
+ただ単純にBeanがない可能性があるのであれば、null安全を考慮して`Optional<Vehicle>`で宣言すればよい。
+
+```Java
+@Component
+public class Person {
+
+    private String name;
+
+    //対応するBeanがなくても例外を発生させない
+    @Autowired(required = false)
+    private Vehicle vehicle;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Vehicle getVehicle() {
+        return vehicle;
+    }
+
+    public void setVehicle(Vehicle vehicle) {
+        this.vehicle = vehicle;
+    }
+}
+```
+
+#### Setter Injection（非推奨）
+
+BeanのSetterに対して@Autowiredを付与することによって、対象のフィールドにBeanを注入することができる。  
+以下のようなイメージ。
+
+```Java
+@Component
+public class Vehicle {
+
+    public Vehicle() {
+        this.name = "Vehicle name";
+    }
+
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+
+@Component
+public class Person {
+
+    private String name;
+
+    private Vehicle vehicle;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Vehicle getVehicle() {
+        return vehicle;
+    }
+
+    //@Autowiredアノテーションによって引数のvehicleにVehicleクラスのBeanを注入する（依存関係を解決する）
+    @Autowired
+    public void setVehicle(Vehicle vehicle) {
+        this.vehicle = vehicle;
+    }
+}
+```
+
+```Java
+public class Example1 {
+    public static void main(String[] args) {
+
+        //ApplicationContext生成
+        var context = new AnnotationConfigApplicationContext(ProjectConfig.class);
+
+        var person = (Person)context.getBean(Person.class);
+        System.out.println("Person's vehicle name from Spring Context is :" + person.getVehicle().getName());
+    }
+}
+```
+
+実行結果
+
+```Text
+Person's vehicle name from Spring Context is :Vehicle name
+```
+
+#### Constructor Injection（推奨）
+
+BeanのConstructorに対して@Autowiredを付与することによって、対象のフィールドにBeanを注入することができる。  
+以下のようなイメージ。
+
+```Java
+@Component
+public class Vehicle {
+
+    public Vehicle() {
+        this.name = "Vehicle name";
+    }
+
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+
+@Component
+public class Person {
+
+    @Autowired
+    public Person(Vehicle vehicle) {
+        this.vehicle = vehicle;
+    }
+
+    private String name;
+
+    //finalが付与できる
+    private final Vehicle vehicle;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Vehicle getVehicle() {
+        return vehicle;
+    }
+
+    /* setterを削除できる
+    public void setVehicle(Vehicle vehicle) {
+        this.vehicle = vehicle;
+    }
+    */
+}
+```
+
+```Java
+public class Example1 {
+    public static void main(String[] args) {
+
+        //ApplicationContext生成
+        var context = new AnnotationConfigApplicationContext(ProjectConfig.class);
+
+        var person = (Person)context.getBean(Person.class);
+        System.out.println("Person's vehicle name from Spring Context is :" + person.getVehicle().getName());
+    }
+}
+```
+
+実行結果
+
+```Text
+Person's vehicle name from Spring Context is :Vehicle name
+```
+
+
+#### Constructor Injectionが推奨される理由
+
+特別な理由がない限り、「Field Injection」や「Setter Injection」は非推奨であり  
+「Constructor Injection」が推奨される。
+理由は以下の通り。
+
+- 注入対象のフィールドにfinalを付与することができるため、不変性を保つことができる
+- コンストラクタに依存情報が集約される
+  - クラスの責任が確認できる（あまりに大きい責任を保持していないか等を確認できる）
+  - 可読性が高い
+
+### 同クラスのBeanが複数ある場合
+
+@Qualifier("Bean名")を使用して、指定した名称のBeanを注入することができる。
+
+```Java
+@Component
+public class Person {
+
+    @Autowired
+    public Person(@Qualifier("veh") Vehicle vehicle) {
+        this.vehicle = vehicle;
+    }
+
+    private String name;
+
+    private final Vehicle vehicle;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Vehicle getVehicle() {
+        return vehicle;
+    }
+}
+```
+
+### @Scopeアノテーション
+
+@Scopeアノテーションを使用することにより、Beanのスコープを定義することができる。  
+Beanのスコープは5つあり、以下の通りとなっている。
+
+- Singleton（デフォルト）
+- Prototype
+- Request
+- Session
+- Application
+
+```Java
+@Component
+@Scope(BeanDefinition.SCOPE_SINGLETON) //スコープを定義できる
+public class Person {
+
+    @Autowired
+    public Person(@Qualifier("veh") Vehicle vehicle) {
+        this.vehicle = vehicle;
+    }
+
+    private String name;
+
+    private final Vehicle vehicle;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Vehicle getVehicle() {
+        return vehicle;
+    }
+}
+```
+
+#### Singletonスコープ
+
+SpringにおけるBeanのデフォルトスコープ。
+getBeanやAutowiredアノテーションで注入される際に、常に同じインスタンスが注入される。
+シングルトンパターンの実装ではアプリケーションで単一のインスタンスとなるが、Springの場合は各Beanに対して常に単一のオブジェクトインスタンスとなる。
+
+常に同じインスタンスが取得されるため、マルチスレッドに対する対策は必須。  
+基本的に状態を持たないBeanに使用する。
+
+#### Prototypeスコープ
+
+Springに対してBeanを要求するたびに新しいインスタンスを作成し、注入される。
+Beanの状態を頻繁に変更する場合に使用する。
+
+常に別のインスタンスが取得されるため、マルチスレッド環境を回避するシナリオで使用される。
+
+### @Lazyアノテーション
+
+デフォルトではSpringはアプリケーション起動中にコンポーネントのスキャンを実施し、Beanを生成する。  
+このタイミングをアプリケーション起動時ではなく、最初に呼び出された場合に生成するように変更可能（遅延初期化）。  
+以下の場合に使用する。
+
+ただし遅延初期化を指定した場合、Bean作成中に例外が発生した場合にユーザーに対しては例外となって処理されてしまうため注意すること。  
+（遅延初期化でない場合はアプリケーション起動中に例外が発生するという利点がある）
+
+- アプリケーション起動中に作成したくないBeanがある場合
+- ほぼ使われないBeanがある場合
+- 可能な限りアプリケーションのメモリを節約したい場合
+- アプリケーションで生成するBeanが多すぎる場合
+- アプリケーション起動中にリモートアクセスするような処理が多く存在する場合
+
+以下の通り。
+
+```Java
+@Component
+@Lazy
+public class Person {
+
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+```
